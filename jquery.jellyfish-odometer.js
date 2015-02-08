@@ -259,16 +259,16 @@
         _drawOdometer: function() {
             switch (this.config.alignment) {
                 case 'left':
-                    this.$elem.className += ' jcw-left';
+                    this.elem.className += ' jcw-left';
                     break;
                 case 'right':
-                    this.$elem.className += ' jcw-right';
+                    this.elem.className += ' jcw-right';
                     break;
                 case 'inline':
-                    this.$elem.className += ' jcw-inline';
+                    this.elem.className += ' jcw-inline';
                     break;
                 default:
-                    this.$elem.className += ' jcw-center';
+                    this.elem.className += ' jcw-center';
             }
             var odometerDiv = document.createElement("div");
             odometerDiv.className = "jcw-odometer-div";

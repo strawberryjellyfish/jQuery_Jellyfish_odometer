@@ -357,8 +357,28 @@
                 }
             });
         } else if (methodOrOptions != 'init' && methodOrOptions.indexOf('_') == -1) {
-            if (typeof args !== 'undefined' & !$.inArray(methodOrOptions, getterMethods)) {
-                console.log('method or property setter')
+            var instance = $.data(this[0], 'plugin_jellyfishOdometer');
+
+            if ( $.inArray(methodOrOptions, getterMethods) > -1 ||
+                (args == undefined && typeof instance[methodOrOptions] != 'function')) {
+                // this is a get method or get property we can't use this.each
+                // because we want to return data not this, so we'll default
+                // to returning data for the first instance as it doesn't
+                // make sense asking for properties from a collection.
+                console.log('getter method or property getter');
+
+                if (instance instanceof jellyfishOdometer) {
+                    if (typeof instance[methodOrOptions] == 'function') {
+                        return instance[methodOrOptions].call(instance);
+                    } else if (methodOrOptions in instance.config) {
+                        // return property
+                        return instance.config[methodOrOptions];
+                    } else {
+                        $.error(methodOrOptions + ' does not exist as a method or property on jellyfishOdometer (' + this[0].id + ')');
+                    }
+                }
+            } else {
+                console.log('method or property setter');
                 return this.each(function() {
                     var instance = $.data(this, 'plugin_jellyfishOdometer');
                     if (instance instanceof jellyfishOdometer) {
@@ -371,23 +391,6 @@
                         }
                     }
                 });
-            } else {
-                // this is a get method or get property we can't use this.each
-                // because we want to return data not this, so we'll default
-                // to returning data for the first instance as it doesn't
-                // make sense asking for properties from a collection.
-                console.log('getter method or property getter')
-                var instance = $.data(this[0], 'plugin_jellyfishOdometer');
-                if (instance instanceof jellyfishOdometer) {
-                    if (typeof instance[methodOrOptions] == 'function') {
-                        return instance[methodOrOptions].call(instance);
-                    } else if (methodOrOptions in instance.config) {
-                        // return property
-                        return instance.config[methodOrOptions];
-                    } else {
-                        $.error(methodOrOptions + ' does not exist as a method or property on jellyfishOdometer (' + this[0].id + ')');
-                    }
-                }
             }
         }
 

@@ -4,7 +4,7 @@
 //  Jellyfish Counter Widget for WordPress
 //  http://strawberryjellyfish.com/wordpress-plugins/jellyfish-counter/
 //
-//  Version 0.5
+//  Version 0.6
 //  Copyright (C) 2015 Robert Miller
 //  http://strawberryjellyfish.com
 //============================================================================//
@@ -68,38 +68,31 @@
             direction: 'up',
             timestamp: false,
             interval: 1,
+            intervalClockIncrement: 0.05,
+            tickAmount: 0.05,
+            random: false,
+            randomLow: 0,
+            randomHigh: 1,
             active: true,
-            complete: function() {
-                alert('Done! :' + this.currentValue)
-            }
+            completed: ''
         },
 
         init: function() {
-            this.config = $.extend( {}, this.defaults, this.options, this.metadata );
-            this.highlights = [
-                "jcw-highlight-1 jcw-highlight",
-                "jcw-highlight-2 jcw-highlight",
-                "jcw-highlight-3 jcw-highlight",
-                "jcw-highlight-4 jcw-sidehighlight",
-                "jcw-highlight-5 jcw-sidelowlight",
-                "jcw-highlight-6 jcw-lowlight",
-                "jcw-highlight-7 jcw-lowlight",
-                "jcw-highlight-8 jcw-lowlight"
-            ];
-
             this.digitInfo = new Array();
-
-            this.wholeNumber = 0;
-
+            this.intervalClock = 0;
             this.currentValue = 0;
 
+            // merge options from defaults, arguments and data attributes
+            this.config = $.extend( {}, this.defaults, this.options, this.metadata );
+
+            // calculate some other default settings
             if (this.config.format) {
                 this.config.digits = (this.config.format.match(/0/g) || []).length;
             } else {
                 this.config.format = new Array(this.config.digits + 1).join('0');
             }
 
-            // continuous counters don't have tenths because of... complications.
+            // continuous counters don't have tenths.
             if (this.config.timestamp)
                 this.config.tenths = false;
 
@@ -114,11 +107,25 @@
                 columns: "height:" + this.config.digitHeight + "px; width:" + this.config.digitWidth + "px;"
             };
 
+            // pair map highlight divs to desired CSS classes
+            this.highlights = [
+                "jcw-highlight-1 jcw-highlight",
+                "jcw-highlight-2 jcw-highlight",
+                "jcw-highlight-3 jcw-highlight",
+                "jcw-highlight-4 jcw-sidehighlight",
+                "jcw-highlight-5 jcw-sidelowlight",
+                "jcw-highlight-6 jcw-lowlight",
+                "jcw-highlight-7 jcw-lowlight",
+                "jcw-highlight-8 jcw-lowlight"
+            ];
+
+            // Initially draw the counter and set to the start value
             this._drawOdometer(this.element, this.config);
             this.set(this.config.startValue);
 
+            // Start counting, if not already finished
             if ((this.config.endValue != this.config.startValue) && this.config.active) {
-                this.update(this.element, this.config);
+                this._update(this.element, this.config);
             }
 
             return this;
@@ -127,19 +134,16 @@
         // sets the current value of the counter
         // newValue must not be less than 0 but doesn't have to be an integer
         set: function(newValue) {
-            if (newValue < 0)
-                newValue = 0;
+            if (newValue < 0) newValue = 0;
             this.currentValue = newValue;
-            if (this.config.tenths)
-                newValue = newValue * 10;
-            var wholeNumber = Math.floor(newValue);
-            var fraction = newValue - wholeNumber;
-            wholeNumber = String(wholeNumber);
+            if (this.config.tenths) newValue = newValue * 10;
+            var integerValue = Math.floor(newValue);
+            var fraction = newValue - integerValue;
+            integerValue = String(integerValue);
             for (var i = 0; i < this.config.digits; i++) {
-                var digit = wholeNumber.substring(wholeNumber.length - i - 1, wholeNumber.length - i) || 0;
+                var digit = integerValue.substring(integerValue.length - i - 1, integerValue.length - i) || 0;
                 this._setDigitValue(this.config.digits - i - 1, digit, fraction);
-                if (digit != 9)
-                    fraction = 0;
+                if (digit != 9) fraction = 0;
             }
         },
 
@@ -152,21 +156,25 @@
         // if the counter has already finished you need to reset() first
         start: function() {
             this.config.active = true;
-            this.update();
+            this._update();
         },
 
         // stops/pauses an active counter, can be resumed with start()
         stop: function() {
             this.config.active = false;
-            return this.currentValue
+            if (this.timeout) clearTimeout(this.timeout);
         },
 
         // resets a counter to it's initial (start) value,
         // continuous counters will reset to the value they had at page load
         reset: function() {
-            this.wholeNumber = 0;
+            this.intervalClock = 0;
             this.set(this.config.startValue);
         },
+
+        // reverses the counter
+        // start and end values are swapped around so the original start
+        // value is now the end value and vice versa and the count direction reverses
         reverse: function() {
             this.stop();
             var currentStart = this.config.startValue;
@@ -176,21 +184,27 @@
             this.config.endValue = currentStart;
             this.start();
         },
+
+        // Adds v to the current counter total
         increment: function(v) {
+            var currentState = this.config.active;
             this.stop();
-            this.wholeNumber = 1;
-            this.currentValue += v;
+            this.intervalClock = 1;
+            this.currentValue += v | 1;
             this.config.active = true;
-            this.update();
+            this._update();
+            this.config.active = currentState;
         },
 
         decrement: function(v) {
+            var currentState = this.config.active;
             this.stop();
-            this.wholeNumber = 1;
-            this.currentValue -= v;
+            this.intervalClock = 1;
+            this.currentValue -= v | 1;
             this.config.active = true;
-            this.update();
-        },
+            this._update();
+            this.config.active = currentState;
+         },
 
         _setDigitValue: function(digit, val, frac) {
             var di = this.digitInfo[digit];
@@ -303,43 +317,51 @@
         // Do the counting!
         // The maths isn't precise here as JavaScript execution speed varies
         // greatly depending on applications, devices and load...
-        // Increment/Decrement values used here have been tweaked to work
-        // reasonably in most situations which is good enough as this is
-        // just supposed to be a visual effect not a scientific instrument!
-        update: function() {
+        _update: function() {
             if (this.config.active) {
                 if (this.config.timestamp) {
+                    // continuous counter
+                    var tickAmount = this.config.random ?
+                        Math.max( this.config.randomLow, Math.min( ( Math.random() * this.config.randomHigh ), this.config.randomHigh) )
+                        : this.config.tickAmount;
                     this.currentValue = (this.config.direction == 'down') ?
-                        this.currentValue - 0.15 : this.currentValue + 0.15;
-                    this.wholeNumber += 0.15;
-                    if (this.wholeNumber >= 1) {
-                        this.wholeNumber = 0;
+                        this.currentValue - tickAmount : this.currentValue + tickAmount;
+                    this.intervalClock += this.config.intervalClockIncrement;
+                    if (this.intervalClock >= 1) {
+                        this.intervalClock = 0;
                         this.currentValue = Math.round(this.currentValue);
                         this.config.waitTime = this.config.interval * 1000;
                     } else {
                         this.config.waitTime = 1;
                     }
                 } else {
+                    // regular non persistent counter
                     this.currentValue = (this.config.direction == 'down') ?
                         this.currentValue - 0.01 : this.currentValue + 0.01;
                 }
 
+                // check we are still counting, update the counter and reset the timeout
                 if (this.config.direction != 'down' &&
                     (!this.config.endValue || (this.currentValue < this.config.endValue)) ||
                     (this.config.direction == 'down' && (this.currentValue > this.config.endValue))) {
 
                     this.set(this.currentValue);
+                    if (this.timeout) {
+                        clearTimeout(this.timeout);
+                    }
                     var that = this;
-                    window.setTimeout(function() {
-                        that.update();
+                    this.timeout = window.setTimeout(function() {
+                        that._update();
                     }, this.config.waitTime);
                 } else {
+                    // reached the end value, stop and trigger completed function
                     this.config.active = false;
-                    if ($.isFunction(this.config.complete) && this.config.endValue &&
-                        (this.config.direction != 'down' && this.currentValue >= this.config.endValue) ||
-                        (this.config.direction == 'down' && this.currentValue <= this.config.endValue)) {
+                    if (this.config.endValue && $.isFunction(this.config.completed)) {
+                        if ((this.config.direction != 'down' && this.currentValue >= this.config.endValue) ||
+                            (this.config.direction == 'down' && this.currentValue <= this.config.endValue)) {
 
-                        this.config.complete.call(this, this.CurrentValue);
+                            this.config.completed.call(this, this.CurrentValue);
+                        }
                     }
                 }
             }

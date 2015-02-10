@@ -54,6 +54,10 @@
             digitStyle: '',
             alignment: 'center',
             flat: false,
+            digitClass: null,
+            tenthDigitClass: null,
+            digitContainerClass: null,
+            counterClass: null,
             waitTime: 10,
             startValue: 0,
             direction: 'up',
@@ -242,18 +246,21 @@
 
         // add a digit div to the dom
         _drawDigit: function(i) {
+            var digitClass = this.config.digitClass ? 
+                "jcw-digit " + this.config.digitClass : "jcw-digit";
             var digitDivA = document.createElement("div");
             digitDivA.setAttribute("id", "odometer_digit_" + i + "a");
-            digitDivA.className = "jcw-digit";
+            digitDivA.className = digitClass;
             digitDivA.style.cssText = this.style.digits;
 
             var digitDivB = document.createElement("div");
             digitDivB.setAttribute("id", "odometer_digit_" + i + "b");
-            digitDivB.className = "jcw-digit";
+            digitDivB.className = digitClass;
             digitDivB.style.cssText = this.style.digits;
 
             var digitColDiv = document.createElement("div");
-            digitColDiv.className = "jcw-digit-container";
+            digitColDiv.className = this.config.digitContainerClass ? 
+                "jcw-digit " + this.config.digitContainerClass : "jcw-digit-container";
             digitColDiv.style.cssText = this.style.columns;
 
             digitColDiv.appendChild(digitDivB);
@@ -309,10 +316,12 @@
                 } else {
                     var separator = document.createElement("div");
                     separator.innerHTML = character;
-                    separator.className = "jcw-digit";
+                    separator.className = this.config.digitClass ? 
+                        "jcw-digit " + this.config.digitClass : "jcw-digit";
                     separator.style.cssText = this.style.digits;
                     var digitColDiv = document.createElement("div");
-                    digitColDiv.className = "jcw-digit-container";
+                    digitColDiv.className = this.config.counterClass ? 
+                        "jcw-digit-container " + this.config.counterClass : "jcw-digit-container";
                     digitColDiv.style.cssText = this.style.columns;
                     digitColDiv.appendChild(separator);
                 }
@@ -321,8 +330,10 @@
             };
 
             if (this.config.tenths) {
-                this.digitInfo[this.config.digits - 1].digitA.className = "jcw-tenth";
-                this.digitInfo[this.config.digits - 1].digitB.className = "jcw-tenth";
+                this.digitInfo[this.config.digits - 1].digitA.className = this.config.tenthDigitClass ? 
+                    "jcw-tenth " + this.config.tenthDigitClass : "jcw-tenth";
+                this.digitInfo[this.config.digits - 1].digitB.className = this.config.tenthDigitClass ? 
+                    "jcw-tenth " + this.config.tenthDigitClass : "jcw-tenth";
             }
 
             if (this.currentValue >= 0) this.set(this.currentValue);

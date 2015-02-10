@@ -4,7 +4,7 @@
 //  Jellyfish Counter Widget for WordPress
 //  http://strawberryjellyfish.com/wordpress-plugins/jellyfish-counter/
 //
-//  Version 0.6
+//  Version 0.7
 //  Copyright (C) 2015 Robert Miller
 //  http://strawberryjellyfish.com
 //============================================================================//
@@ -31,17 +31,6 @@
 
     "use strict";
 
-    // undefined is used here as the undefined global variable in ECMAScript 3 is
-    // mutable (ie. it can be changed by someone else). undefined isn't really being
-    // passed in so we can ensure the value of it is truly undefined. In ES5, undefined
-    // can no longer be modified.
-
-    // window and document are passed through as local variable rather than global
-    // as this (slightly) quickens the resolution process and can be more efficiently
-    // minified (especially when both are regularly referenced in your plugin).
-
-    // Create the defaults once
-
     var jellyfishOdometer = function(elem, options) {
         this._name = jellyfishOdometer;
         this.elem = elem;
@@ -51,6 +40,8 @@
         //this.metadata = this.$elem.data('jellyfish-counter-options');
     };
 
+    // default parameters, will be overridden by any params supplied at
+    // object creation via param hash or data attributes on target element
     jellyfishOdometer.prototype = {
         defaults: {
             format: '',
@@ -74,16 +65,18 @@
             randomLow: 0,
             randomHigh: 1,
             active: true,
-            completed: ''
+            initialisedFunction: null,
+            completedFunction: null,
         },
 
+        // Init() is run on counter creation, it shouln't be called manually
         init: function() {
             this.digitInfo = new Array();
             this.intervalClock = 0;
             this.currentValue = 0;
 
             // merge options from defaults, arguments and data attributes
-            this.config = $.extend( {}, this.defaults, this.options, this.metadata );
+            this.config = $.extend({}, this.defaults, this.options, this.metadata);
 
             // calculate some other default settings
             if (this.config.format) {
@@ -123,12 +116,24 @@
             this._drawOdometer(this.element, this.config);
             this.set(this.config.startValue);
 
+            // Counter is initialised and drawn with initial value,
+            // fire of the initicalisedFunction() if it exists
+            if ($.isFunction(this.config.initialisedFunction)) {
+                this.config.initialisedFunction();
+            }
+
             // Start counting, if not already finished
             if ((this.config.endValue != this.config.startValue) && this.config.active) {
                 this._update(this.element, this.config);
             }
 
             return this;
+        },
+
+        // Remove the counter from the dom
+        destroy: function() {
+            if (this.timeout) clearTimeout(this.timeout);
+            this.$elem.remove();
         },
 
         // sets the current value of the counter
@@ -185,7 +190,7 @@
             this.start();
         },
 
-        // Adds v to the current counter total
+        // Adds v to the current total and update the counter
         increment: function(v) {
             var currentState = this.config.active;
             this.stop();
@@ -196,6 +201,7 @@
             this.config.active = currentState;
         },
 
+        // Subtract v to the current total and update the counter
         decrement: function(v) {
             var currentState = this.config.active;
             this.stop();
@@ -204,8 +210,16 @@
             this.config.active = true;
             this._update();
             this.config.active = currentState;
-         },
+        },
 
+
+        // left pad a string with zeros
+        _zeroPad: function(str, max) {
+            str = str.toString();
+            return str.length < max ? this._zeroPad("0" + str, max) : str;
+        },
+
+        // Set digit div content and vertical position based on value
         _setDigitValue: function(digit, val, frac) {
             var di = this.digitInfo[digit];
             var px = Math.floor(this.config.digitHeight * frac);
@@ -286,7 +300,7 @@
             }
             var odometerDiv = document.createElement("div");
             odometerDiv.className = "jcw-odometer-div";
-            $(this.$elem).append(odometerDiv);
+            this.$elem.append(odometerDiv);
 
             for (var i = 0; i < this.config.format.length; i++) {
                 var character = this.config.format.charAt(i);
@@ -314,6 +328,24 @@
             if (this.currentValue >= 0) this.set(this.currentValue);
         },
 
+        // cancel any timeout, remove the counter and redraw it 
+        // (useful if digit count has changed)
+        redraw: function() {
+            if (this.timeout) clearTimeout(this.timeout);
+            var existing = this.$elem.children('div .jcw-odometer-div');
+            if (existing.length) {
+                existing.remove()
+                this.digitInfo = new Array();
+                this.intervalClock = 0;
+                // Ensure format string and number of digits are still in sync
+                var formatSize = (this.config.format.match(/0/g) || []).length;
+                var formatDiff = (this.config.format || []).length - formatSize;
+                this.config.format = this._zeroPad(this.config.format, this.config.digits + formatDiff);
+                this._drawOdometer();
+                this.set(this.currentValue);
+            }
+        },
+
         // Do the counting!
         // The maths isn't precise here as JavaScript execution speed varies
         // greatly depending on applications, devices and load...
@@ -322,8 +354,7 @@
                 if (this.config.timestamp) {
                     // continuous counter
                     var tickAmount = this.config.random ?
-                        Math.max( this.config.randomLow, Math.min( ( Math.random() * this.config.randomHigh ), this.config.randomHigh) )
-                        : this.config.tickAmount;
+                        Math.max(this.config.randomLow, Math.min((Math.random() * this.config.randomHigh), this.config.randomHigh)) : this.config.tickAmount;
                     this.currentValue = (this.config.direction == 'down') ?
                         this.currentValue - tickAmount : this.currentValue + tickAmount;
                     this.intervalClock += this.config.intervalClockIncrement;
@@ -356,11 +387,11 @@
                 } else {
                     // reached the end value, stop and trigger completed function
                     this.config.active = false;
-                    if (this.config.endValue && $.isFunction(this.config.completed)) {
+                    if (this.config.endValue && $.isFunction(this.config.completedFunction)) {
                         if ((this.config.direction != 'down' && this.currentValue >= this.config.endValue) ||
                             (this.config.direction == 'down' && this.currentValue <= this.config.endValue)) {
 
-                            this.config.completed.call(this, this.CurrentValue);
+                            this.config.completedFunction.call(this, this.CurrentValue);
                         }
                     }
                 }
@@ -374,20 +405,18 @@
         if (typeof methodOrOptions === 'object' || !methodOrOptions) {
             return this.each(function() {
                 if (!$.data(this, 'plugin_jellyfishOdometer')) {
-                    console.log('adding: ' + this.id);
                     $.data(this, 'plugin_jellyfishOdometer', new jellyfishOdometer(this, methodOrOptions).init());
                 }
             });
         } else if (methodOrOptions != 'init' && methodOrOptions.indexOf('_') == -1) {
             var instance = $.data(this[0], 'plugin_jellyfishOdometer');
 
-            if ( $.inArray(methodOrOptions, getterMethods) > -1 ||
+            if ($.inArray(methodOrOptions, getterMethods) > -1 ||
                 (args == undefined && typeof instance[methodOrOptions] != 'function')) {
                 // this is a get method or get property we can't use this.each
                 // because we want to return data not this, so we'll default
                 // to returning data for the first instance as it doesn't
                 // make sense asking for properties from a collection.
-                console.log('getter method or property getter');
 
                 if (instance instanceof jellyfishOdometer) {
                     if (typeof instance[methodOrOptions] == 'function') {
@@ -400,7 +429,6 @@
                     }
                 }
             } else {
-                console.log('method or property setter');
                 return this.each(function() {
                     var instance = $.data(this, 'plugin_jellyfishOdometer');
                     if (instance instanceof jellyfishOdometer) {
@@ -415,7 +443,6 @@
                 });
             }
         }
-
     };
 
 })(jQuery, window, document);

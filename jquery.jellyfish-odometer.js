@@ -89,9 +89,14 @@
                 this.config.format = new Array(this.config.digits + 1).join('0');
             }
 
-            // continuous counters don't have tenths.
-            if (this.config.timestamp)
+            // if we have a timestamp, caculate the number of ticks since then and
+            // add to the start value to get the current total of a continuous counter
+            if (this.config.timestamp) {
                 this.config.tenths = false;
+                var startedAt = Date.parse( this.config.timestamp );
+                var secondsPassed = ( new Date().getTime() - startedAt ) / 1000;
+                this.config.startValue = this.config.startValue + ( secondsPassed / this.config.interval );
+            }
 
             // set up styles based on config options,
             // these will override styles in jellyfish-counter.css

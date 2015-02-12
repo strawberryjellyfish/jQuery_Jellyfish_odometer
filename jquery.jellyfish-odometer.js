@@ -58,6 +58,7 @@
             tenthDigitClass: null,
             digitContainerClass: null,
             counterClass: null,
+            counterStyle: 4,
             waitTime: 10,
             startValue: 0,
             direction: 'up',
@@ -251,21 +252,19 @@
 
         // add a digit div to the dom
         _drawDigit: function(i) {
-            var digitClass = this.config.digitClass ? 
-                "jcw-digit " + this.config.digitClass : "jcw-digit";
+
             var digitDivA = document.createElement("div");
             digitDivA.setAttribute("id", "odometer_digit_" + i + "a");
-            digitDivA.className = digitClass;
+            digitDivA.className = this.digitClass;
             digitDivA.style.cssText = this.style.digits;
 
             var digitDivB = document.createElement("div");
             digitDivB.setAttribute("id", "odometer_digit_" + i + "b");
-            digitDivB.className = digitClass;
+            digitDivB.className = this.digitClass;
             digitDivB.style.cssText = this.style.digits;
 
             var digitColDiv = document.createElement("div");
-            digitColDiv.className = this.config.digitContainerClass ? 
-                "jcw-digit " + this.config.digitContainerClass : "jcw-digit-container";
+            digitColDiv.className = this.digitContainerClass;
             digitColDiv.style.cssText = this.style.columns;
 
             digitColDiv.appendChild(digitDivB);
@@ -297,6 +296,39 @@
 
         // render the complete odometer into the dom
         _drawOdometer: function() {
+
+            this.odometerClass = "jcw-odometer-div";
+            this.digitClass = "jcw-digit";
+            this.tenthDigitClass = "jcw-tenth";
+
+            switch (this.config.counterStyle) {
+                case 2: 
+                    this.digitClass += " jcw-digit-style2";
+                    this.tenthDigitClass += " jcw-tenth-style2";
+                    break;
+                case 3: 
+                    this.digitClass += " jcw-digit-style3";
+                    this.tenthDigitClass += " jcw-tenth-style3";
+                    break;
+                case 4: 
+                    this.digitClass += " jcw-digit-style4";
+                    this.tenthDigitClass += " jcw-tenth-style4";
+                    break;
+                default:
+                    this.digitClass += " jcw-digit-style1";
+                    this.tenthDigitClass += " jcw-tenth-style1";
+            }
+
+
+            this.digitContainerClass = this.config.digitContainerClass ? 
+                "jcw-digit-container " + this.config.digitContainerClass : "jcw-digit-container";
+
+            this.digitClass = this.config.digitClass ? 
+                this.digitClass + " " + this.config.digitClass : this.digitClass;
+
+            this.tenthDigitClass = this.config.tenthDigitClass ? 
+                this.tenthDigitClass + " " + this.config.tenthDigitClass : this.tenthDigitClass;
+
             switch (this.config.alignment) {
                 case 'left':
                     this.elem.className += ' jcw-left';
@@ -310,8 +342,12 @@
                 default:
                     this.elem.className += ' jcw-center';
             }
+
+            this.odometerClass ? 
+                this.odometerClass + " " + this.config.counterClass : this.odometerClass;
+
             var odometerDiv = document.createElement("div");
-            odometerDiv.className = "jcw-odometer-div";
+            odometerDiv.className = this.odometerClass;
             this.$elem.append(odometerDiv);
 
             for (var i = 0; i < this.config.format.length; i++) {
@@ -321,12 +357,10 @@
                 } else {
                     var separator = document.createElement("div");
                     separator.innerHTML = character;
-                    separator.className = this.config.digitClass ? 
-                        "jcw-digit " + this.config.digitClass : "jcw-digit";
+                    separator.className = this.digitClass;
                     separator.style.cssText = this.style.digits;
                     var digitColDiv = document.createElement("div");
-                    digitColDiv.className = this.config.counterClass ? 
-                        "jcw-digit-container " + this.config.counterClass : "jcw-digit-container";
+                    digitColDiv.className = this.odometerClass;
                     digitColDiv.style.cssText = this.style.columns;
                     digitColDiv.appendChild(separator);
                 }
@@ -335,10 +369,8 @@
             };
 
             if (this.config.tenths) {
-                this.digitInfo[this.config.digits - 1].digitA.className = this.config.tenthDigitClass ? 
-                    "jcw-tenth " + this.config.tenthDigitClass : "jcw-tenth";
-                this.digitInfo[this.config.digits - 1].digitB.className = this.config.tenthDigitClass ? 
-                    "jcw-tenth " + this.config.tenthDigitClass : "jcw-tenth";
+                this.digitInfo[this.config.digits - 1].digitA.className = this.tenthDigitClass;
+                this.digitInfo[this.config.digits - 1].digitB.className = this.tenthDigitClass;
             }
 
             if (this.currentValue >= 0) this.set(this.currentValue);
@@ -359,6 +391,7 @@
                 this.config.format = this._zeroPad(this.config.format, this.config.digits + formatDiff);
                 this._drawOdometer();
                 this.set(this.currentValue);
+                this._update();
             }
         },
 
@@ -393,7 +426,7 @@
                     (this.config.direction == 'down' && (this.currentValue > this.config.endValue))) {
 
                     this.set(this.currentValue);
-                    if (this.timeout) {
+                    if (this.timeout) { 
                         clearTimeout(this.timeout);
                     }
                     var that = this;

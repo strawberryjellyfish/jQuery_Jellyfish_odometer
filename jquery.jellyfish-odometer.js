@@ -58,7 +58,7 @@
             tenthDigitClass: null,
             digitContainerClass: null,
             counterClass: null,
-            counterStyle: 4,
+            counterStyle: 2,
             waitTime: 10,
             startValue: 0,
             direction: 'up',
@@ -94,9 +94,9 @@
             // add to the start value to get the current total of a continuous counter
             if (this.config.timestamp) {
                 this.config.tenths = false;
-                var startedAt = Date.parse( this.config.timestamp );
-                var secondsPassed = ( new Date().getTime() - startedAt ) / 1000;
-                this.config.startValue = this.config.startValue + ( secondsPassed / this.config.interval );
+                var parsedDate = this._parseDate( this.config.timestamp );
+                var secondsPassed = ( new Date().getTime() - parsedDate ) / 1000;
+                this.config.startValue = parseInt( this.config.startValue + ( secondsPassed / this.config.interval ) );
             }
 
             // set up styles based on config options,
@@ -229,6 +229,18 @@
             return str.length < max ? this._zeroPad("0" + str, max) : str;
         },
 
+        _parseDate: function(input) {
+            var parsedDate = Date.parse(input);
+            if ( isNaN(parsedDate) ) {
+                var parts = input.split(' ');
+                var dateParts = parts[0].split('-');
+                var timeParts = parts[1].split(':');
+                parsedDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2], timeParts[0], timeParts[1], timeParts[2]);
+            }
+            
+            return parsedDate    
+        },
+
         // Set digit div content and vertical position based on value
         _setDigitValue: function(digit, val, frac) {
             var di = this.digitInfo[digit];
@@ -302,15 +314,15 @@
             this.tenthDigitClass = "jcw-tenth";
 
             switch (this.config.counterStyle) {
-                case 2: 
+                case 2:
                     this.digitClass += " jcw-digit-style2";
                     this.tenthDigitClass += " jcw-tenth-style2";
                     break;
-                case 3: 
+                case 3:
                     this.digitClass += " jcw-digit-style3";
                     this.tenthDigitClass += " jcw-tenth-style3";
                     break;
-                case 4: 
+                case 4:
                     this.digitClass += " jcw-digit-style4";
                     this.tenthDigitClass += " jcw-tenth-style4";
                     break;
@@ -320,13 +332,13 @@
             }
 
 
-            this.digitContainerClass = this.config.digitContainerClass ? 
+            this.digitContainerClass = this.config.digitContainerClass ?
                 "jcw-digit-container " + this.config.digitContainerClass : "jcw-digit-container";
 
-            this.digitClass = this.config.digitClass ? 
+            this.digitClass = this.config.digitClass ?
                 this.digitClass + " " + this.config.digitClass : this.digitClass;
 
-            this.tenthDigitClass = this.config.tenthDigitClass ? 
+            this.tenthDigitClass = this.config.tenthDigitClass ?
                 this.tenthDigitClass + " " + this.config.tenthDigitClass : this.tenthDigitClass;
 
             switch (this.config.alignment) {
@@ -343,7 +355,7 @@
                     this.elem.className += ' jcw-center';
             }
 
-            this.odometerClass ? 
+            this.odometerClass ?
                 this.odometerClass + " " + this.config.counterClass : this.odometerClass;
 
             var odometerDiv = document.createElement("div");
@@ -376,7 +388,7 @@
             if (this.currentValue >= 0) this.set(this.currentValue);
         },
 
-        // cancel any timeout, remove the counter and redraw it 
+        // cancel any timeout, remove the counter and redraw it
         // (useful if digit count has changed)
         redraw: function() {
             if (this.timeout) clearTimeout(this.timeout);
@@ -426,7 +438,7 @@
                     (this.config.direction == 'down' && (this.currentValue > this.config.endValue))) {
 
                     this.set(this.currentValue);
-                    if (this.timeout) { 
+                    if (this.timeout) {
                         clearTimeout(this.timeout);
                     }
                     var that = this;

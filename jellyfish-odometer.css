@@ -39,6 +39,7 @@
   height: auto;
   width: auto;
   text-align: inherit;
+  white-space: nowrap;
 }
 
 /* 3d effect high/lowlights */

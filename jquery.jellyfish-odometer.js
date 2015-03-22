@@ -369,10 +369,10 @@
                 } else {
                     var separator = document.createElement("div");
                     separator.innerHTML = character;
-                    separator.className = this.digitClass;
+                    separator.className = this.digitClass + " non-digit";
                     separator.style.cssText = this.style.digits;
                     var digitColDiv = document.createElement("div");
-                    digitColDiv.className = this.odometerClass;
+                    digitColDiv.className = this.odometerClass + " non-digit";
                     digitColDiv.style.cssText = this.style.columns;
                     digitColDiv.appendChild(separator);
                 }

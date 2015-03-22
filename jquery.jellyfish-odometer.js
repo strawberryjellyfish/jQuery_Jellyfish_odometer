@@ -36,6 +36,9 @@
         this.elem = elem;
         this.$elem = $(elem);
         this.options = options;
+        // Should probably have the data import only read from a single attribute  
+        // containing an object rather than all data... 
+        // Although I'm not totally decided upon that yet so keep as is for now.
         this.metadata = this.$elem.data();
         //this.metadata = this.$elem.data('jellyfish-counter-options');
     };
@@ -66,6 +69,7 @@
             interval: 1,
             intervalClockIncrement: 0.05,
             tickAmount: 0.05,
+            roundInterval: true,
             random: false,
             randomLow: 0,
             randomHigh: 1,
@@ -93,10 +97,9 @@
             // if we have a timestamp, caculate the number of ticks since then and
             // add to the start value to get the current total of a continuous counter
             if (this.config.timestamp) {
-                this.config.tenths = false;
                 var parsedDate = this._parseDate( this.config.timestamp );
                 var secondsPassed = ( new Date().getTime() - parsedDate ) / 1000;
-                this.config.startValue = parseInt( this.config.startValue + ( secondsPassed / this.config.interval ) );
+                this.config.startValue = parseInt( this.config.startValue + ( ( secondsPassed / this.config.interval ) * this.config.tickAmount) );
             }
 
             // set up styles based on config options,
@@ -416,12 +419,15 @@
                     // continuous counter
                     var tickAmount = this.config.random ?
                         Math.max(this.config.randomLow, Math.min((Math.random() * this.config.randomHigh), this.config.randomHigh)) : this.config.tickAmount;
+                    tickAmount = tickAmount * this.config.intervalClockIncrement;
                     this.currentValue = (this.config.direction == 'down') ?
                         this.currentValue - tickAmount : this.currentValue + tickAmount;
                     this.intervalClock += this.config.intervalClockIncrement;
                     if (this.intervalClock >= 1) {
                         this.intervalClock = 0;
-                        this.currentValue = Math.round(this.currentValue);
+                        if (this.config.roundInterval) {
+                            this.currentValue = Math.round(this.currentValue);
+                        }
                         this.config.waitTime = this.config.interval * 1000;
                     } else {
                         this.config.waitTime = 1;
